@@ -1,0 +1,55 @@
+flagsArr=("-b" "-e" "-n" "-s" "-t" "-v")
+
+files=("file.txt f2.txt" "f2.txt" "invis.txt" "file.txt f2.txt f2.txt invis.txt")
+
+test_count=0
+check=0
+errors=0
+res=""
+tmp=""
+
+for b in "${files[@]}"
+do
+    for t in "${flagsArr[@]}"
+    do
+		##echo "$test_count" >> orig.txt
+		##echo "$test_count" >> my.txt
+      cat $t $b > orig.txt
+      ./s21_cat $t $b > my.txt
+      echo "$(($test_count + 1)) testing... ./s21_cat $t $b"
+
+      # сделать для leaks for mach
+      # tmp=$(leaks --atExit -- ./s21_cat $t $b | grep "")
+      # tmp=$(valgrind --leak-check=full --leak-resolution=high --quiet ./s21_cat $t $b | grep "blocks are definitely lost")
+
+      if [ "$tmp" != "" ]
+      then
+          echo "'$t' Some blocks are definitely lost"
+          res="lost"
+      fi
+
+      DIFF=$(diff -q orig.txt my.txt)
+      if [ "$DIFF" != "" ]
+      then
+          echo "'$t' $DIFF"
+          check=1
+          errors=$(($errors+1))
+      fi
+      test_count=$(($test_count+1))
+      rm orig.txt my.txt
+    done
+done
+
+if [ "$res" != "" ]
+then
+    echo "Some blocks are definitely lost"
+else
+    echo "All heap blocks were freed -- no leaks are possible"
+fi
+
+if [[ $check -eq 0 ]]
+then
+    echo "All $test_count tests are correct"
+else
+    echo "Count of errors: "$errors "tests: "$test_count
+fi
